@@ -330,7 +330,8 @@ class CalculatorService:
         return Calculator(
             calculator_in_dollars=calculator_out,
             calculator_in_currency=await self.calculate_in_euro(calculator_out),
-            destinations=destinations_list
+            destinations=destinations_list,
+            rate=rate
         )
 
 
@@ -372,7 +373,6 @@ if __name__ == "__main__":
 
 
     asyncio.run(main())
-
 
 
 

@@ -48,6 +48,7 @@ class Calculator(BaseModel):
     calculator_in_dollars: CalculatorOut
     calculator_in_currency: CalculatorOut
     destinations: list[str]
+    rate: float
 
 
 
