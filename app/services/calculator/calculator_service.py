@@ -43,6 +43,11 @@ class CalculatorService:
         self.db = db
     @log_async_execution_time('Additional Fees Calculation')
     async def additional_fees_calculator(self) -> AdditionalFeesOut:
+        def normalize_fee(value: float | int | None) -> int:
+            if value is None:
+                return 0
+            return int(round(value))
+
         additional_special_fee_service = AdditionalSpecialFeeService(self.db)
         fee_type_service = FeeTypeService(self.db)
         fee_service = FeeService(self.db)
@@ -50,8 +55,8 @@ class CalculatorService:
 
         fees = await additional_special_fee_service.get_additional_special_fee(self.data.auction)
 
-        all_fees_summ = sum([fee.amount for fee in fees])
-        special_fees_obj = [SpecialFee(name=fee.name, price=fee.amount) for fee in fees]
+        all_fees_summ = sum([normalize_fee(fee.amount) for fee in fees])
+        special_fees_obj = [SpecialFee(name=fee.name, price=normalize_fee(fee.amount)) for fee in fees]
 
         if self.data.fee_type:
             fee_type = await fee_type_service.get_by_fee_auction(self.data.auction, self.data.fee_type)
@@ -66,7 +71,7 @@ class CalculatorService:
         auction_fee_obj = await fee_service.get_fee_in_car_price(fee_type, self.data.price)
 
         if auction_fee_obj.car_price_fee < 1:
-            auction_fee = round(self.data.price * auction_fee_obj.car_price_fee)
+            auction_fee = self.data.price * auction_fee_obj.car_price_fee
         else:
             auction_fee = auction_fee_obj.car_price_fee
 
@@ -77,7 +82,10 @@ class CalculatorService:
             live_fee = await additional_fee_service.get_price_in_live(self.data.price)
             live_fee = live_fee.live_bid_fee
 
-        addit_fees = all_fees_summ + int(auction_fee) + internet_fee + live_fee
+        auction_fee = normalize_fee(auction_fee)
+        internet_fee = normalize_fee(internet_fee)
+        live_fee = normalize_fee(live_fee)
+        addit_fees = all_fees_summ + auction_fee + internet_fee + live_fee
         special_fees_obj.extend([SpecialFee(name='Auction Fee', price=auction_fee),
                                  SpecialFee(name='Internet Fee', price=internet_fee),
                                  SpecialFee(name='Live Fee', price=live_fee)])
@@ -373,7 +381,6 @@ if __name__ == "__main__":
 
 
     asyncio.run(main())
-
 
 
 
