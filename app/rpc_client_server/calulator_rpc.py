@@ -32,6 +32,7 @@ from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
     CalculatorBatchItem, DetailedCalculatorData,
 )
 from app.services.calculator.calculator_service import CalculatorService
+from app.services.calculator.exceptions import NotFoundError
 from app.services.calculator.types import CalculatorOut
 
 
@@ -250,6 +251,14 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 detailed_data=detailed_data,
                 success=True,
             )
+        except NotFoundError as e:
+            logger.warning(f"Not found error in calculation: {e}")
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(str(e))
+            return response_cls(
+                message=str(e),
+                success=False,
+            )
         except ValueError as e:
             logger.warning(f"Validation error in calculation: {e}")
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
@@ -313,6 +322,14 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             calculator, detailed_data = await self._calculate(params)
             return GetCalculatorWithDataResponse(data=calculator, detailed_data=detailed_data, success=True)
 
+        except NotFoundError as e:
+            logger.warning(f"Not found error in GetCalculatorWithData: {e}")
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(str(e))
+            return GetCalculatorWithDataResponse(
+                message=str(e),
+                success=False,
+            )
         except ValueError as e:
             logger.warning(f"Validation error in GetCalculatorWithData: {e}")
             context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
