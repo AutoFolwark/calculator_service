@@ -5,6 +5,16 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class GetRatesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetRatesResponse(_message.Message):
+    __slots__ = ("rate",)
+    RATE_FIELD_NUMBER: _ClassVar[int]
+    rate: float
+    def __init__(self, rate: _Optional[float] = ...) -> None: ...
+
 class GetDetailedFeeTypeRequest(_message.Message):
     __slots__ = ("id",)
     ID_FIELD_NUMBER: _ClassVar[int]

@@ -4,6 +4,7 @@ import grpc
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.logger import logger
+from app.database.crud.exchange_rate import ExchangeRateService
 from app.database.db.session import get_db_context
 from app.database.models import Location, Terminal, Destination, FeeType
 from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2_grpc, calculator_pb2
@@ -12,6 +13,7 @@ from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
     GetDetailedLocationResponse,
     GetDetailedTerminalResponse,
     GetDetailedDestinationResponse,
+    GetRatesResponse,
 )
 
 ModelType = TypeVar("ModelType")
@@ -104,3 +106,17 @@ class DetailedInfoRpc(calculator_pb2_grpc.DetailedInfoServiceServicer):
             auction=fee_type_obj.auction.value if fee_type_obj.auction else "",
             fee_type=fee_type_obj.fee_type.value if fee_type_obj.fee_type else "",
         )
+
+    async def GetRates(self, request: calculator_pb2.GetRatesRequest, context):
+        logger.info("GetRates request received")
+        try:
+            async with get_db_context() as db:
+                exchange_rate_service = ExchangeRateService(db)
+                rate_obj = await exchange_rate_service.get_last_rate()
+                rate_value = rate_obj.rate if hasattr(rate_obj, "rate") else rate_obj
+            return GetRatesResponse(rate=float(rate_value))
+        except Exception as exc:
+            logger.exception("Unexpected error while fetching exchange rate: %s", exc)
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details("Failed to fetch exchange rate")
+            return GetRatesResponse()

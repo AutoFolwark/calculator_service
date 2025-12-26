@@ -235,6 +235,11 @@ class DetailedInfoServiceStub(object):
                 request_serializer=calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeRequest.SerializeToString,
                 response_deserializer=calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeResponse.FromString,
                 _registered_method=True)
+        self.GetRates = channel.unary_unary(
+                '/calculator.v1.DetailedInfoService/GetRates',
+                request_serializer=calculator_dot_v1_dot_calculator__pb2.GetRatesRequest.SerializeToString,
+                response_deserializer=calculator_dot_v1_dot_calculator__pb2.GetRatesResponse.FromString,
+                _registered_method=True)
 
 
 class DetailedInfoServiceServicer(object):
@@ -264,6 +269,12 @@ class DetailedInfoServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetRates(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_DetailedInfoServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -286,6 +297,11 @@ def add_DetailedInfoServiceServicer_to_server(servicer, server):
                     servicer.GetDetailedFeeType,
                     request_deserializer=calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeRequest.FromString,
                     response_serializer=calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeResponse.SerializeToString,
+            ),
+            'GetRates': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRates,
+                    request_deserializer=calculator_dot_v1_dot_calculator__pb2.GetRatesRequest.FromString,
+                    response_serializer=calculator_dot_v1_dot_calculator__pb2.GetRatesResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -396,6 +412,33 @@ class DetailedInfoService(object):
             '/calculator.v1.DetailedInfoService/GetDetailedFeeType',
             calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeRequest.SerializeToString,
             calculator_dot_v1_dot_calculator__pb2.GetDetailedFeeTypeResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetRates(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/calculator.v1.DetailedInfoService/GetRates',
+            calculator_dot_v1_dot_calculator__pb2.GetRatesRequest.SerializeToString,
+            calculator_dot_v1_dot_calculator__pb2.GetRatesResponse.FromString,
             options,
             channel_credentials,
             insecure,
