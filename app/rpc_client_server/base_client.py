@@ -1,27 +1,30 @@
 import asyncio
-from abc import abstractmethod, ABC
-from typing import TypeVar, Generic, Optional, Callable, Any, Dict
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any, Generic, TypeVar
+
 import grpc
 
+T = TypeVar("T")
 
-T = TypeVar('T')
+
 class BaseRpcClient(Generic[T], ABC):
     def __init__(
-            self,
-            server_url: str,
-            timeout: float = 30.0,
-            max_receive_message_length: int = 4 * 1024 * 1024,
-            max_send_message_length: int = 4 * 1024 * 1024,
-            compression: Optional[grpc.Compression] = None
+        self,
+        server_url: str,
+        timeout: float = 30.0,
+        max_receive_message_length: int = 4 * 1024 * 1024,
+        max_send_message_length: int = 4 * 1024 * 1024,
+        compression: grpc.Compression | None = None,
     ):
         self.server_url = server_url
         self.timeout = timeout
-        self.channel: Optional[grpc.aio.Channel] = None
-        self.stub: Optional[T] = None
+        self.channel: grpc.aio.Channel | None = None
+        self.stub: T | None = None
 
         self.channel_options = [
-            ('grpc.max_receive_message_length', max_receive_message_length),
-            ('grpc.max_send_message_length', max_send_message_length),
+            ("grpc.max_receive_message_length", max_receive_message_length),
+            ("grpc.max_send_message_length", max_send_message_length),
         ]
         self.compression = compression
 
@@ -33,17 +36,11 @@ class BaseRpcClient(Generic[T], ABC):
         if self.channel is not None:
             return
         try:
-            self.channel = grpc.aio.insecure_channel(
-                self.server_url,
-                options=self.channel_options
-            )
+            self.channel = grpc.aio.insecure_channel(self.server_url, options=self.channel_options)
             self.stub = self._create_stub(self.channel)
 
-            await asyncio.wait_for(
-                self.channel.channel_ready(),
-                timeout=self.timeout
-            )
-        except Exception as e:
+            await asyncio.wait_for(self.channel.channel_ready(), timeout=self.timeout)
+        except Exception:
             await self.disconnect()
             raise
 
@@ -64,16 +61,10 @@ class BaseRpcClient(Generic[T], ABC):
 
     def _ensure_connected(self):
         if not self.channel or not self.stub:
-            raise RuntimeError(
-                "RPC клиент не подключен. Используйте async with или вызовите connect()"
-            )
+            raise RuntimeError("RPC клиент не подключен. Используйте async with или вызовите connect()")
 
     async def _execute_request(
-            self,
-            method: Callable,
-            request: Any,
-            metadata: Optional[Dict[str, str]] = None,
-            timeout: Optional[float] = None
+        self, method: Callable, request: Any, metadata: dict[str, str] | None = None, timeout: float | None = None
     ) -> Any:
         self._ensure_connected()
 
@@ -83,14 +74,8 @@ class BaseRpcClient(Generic[T], ABC):
 
         request_timeout = timeout or self.timeout
 
-
         response = await asyncio.wait_for(
-            method(
-                request,
-                metadata=rpc_metadata,
-                compression=self.compression
-            ),
-            timeout=request_timeout
+            method(request, metadata=rpc_metadata, compression=self.compression), timeout=request_timeout
         )
 
         return response

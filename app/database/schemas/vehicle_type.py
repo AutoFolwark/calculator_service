@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from app.enums.auction import AuctionEnum, SpecificAuctionEnum
 from app.enums.vehicle_type import VehicleTypeEnum
@@ -9,10 +9,12 @@ class VehicleTypeCreate(BaseModel):
     vehicle_type: VehicleTypeEnum
     specific_type: SpecificAuctionEnum | None = None
 
+
 class VehicleTypeUpdate(BaseModel):
     auction: AuctionEnum | None = None
     vehicle_type: VehicleTypeEnum | None = None
     specific_type: SpecificAuctionEnum | None = None
+
 
 class VehicleTypeRead(BaseModel):
     id: int

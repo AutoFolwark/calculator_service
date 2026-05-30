@@ -1,5 +1,6 @@
 from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database.models import Base
 
 
@@ -18,11 +19,6 @@ class AdditionalFee(Base):
     live_bid_fee: Mapped[float] = mapped_column(nullable=True, default=None)
 
     __table_args__ = (
-        Index('idx_int_proxy_range', 'int_proxy_min', 'int_proxy_max'),
-        Index('idx_live_bid_range', 'live_bid_min', 'live_bid_max'),
+        Index("idx_int_proxy_range", "int_proxy_min", "int_proxy_max"),
+        Index("idx_live_bid_range", "live_bid_min", "live_bid_max"),
     )
-
-
-
-
-

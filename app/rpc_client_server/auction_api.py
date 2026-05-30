@@ -6,9 +6,9 @@ import grpc
 from app.config import settings
 from app.rpc_client_server.base_client import BaseRpcClient, T
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'gen', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "gen", "python"))
 
-from app.rpc_client_server.gen.python.auction.v1 import lot_pb2_grpc, lot_pb2
+from app.rpc_client_server.gen.python.auction.v1 import lot_pb2, lot_pb2_grpc
 
 
 class ApiRpcClient(BaseRpcClient[lot_pb2_grpc.LotServiceStub]):

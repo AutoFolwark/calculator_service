@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
-
 class TerminalCreate(BaseModel):
     name: str
+
 
 class TerminalUpdate(BaseModel):
     name: str | None = Field(None)

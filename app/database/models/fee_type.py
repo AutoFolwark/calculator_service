@@ -12,19 +12,8 @@ class FeeType(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     auction: Mapped[AuctionEnum] = mapped_column(SQLAlchemyEnum(AuctionEnum), nullable=False)
-    fee_type: Mapped[FeeTypeEnum] = mapped_column(SQLAlchemyEnum(FeeTypeEnum),
-                                                  default=FeeTypeEnum.NON_CLEAN_TITLE_FEE, nullable=False)
-
-    fees: Mapped[list[Fee]] = relationship(
-        'Fee',
-        back_populates='fee_type',
-        lazy='selectin'
-
+    fee_type: Mapped[FeeTypeEnum] = mapped_column(
+        SQLAlchemyEnum(FeeTypeEnum), default=FeeTypeEnum.NON_CLEAN_TITLE_FEE, nullable=False
     )
 
-
-
-
-
-
-
+    fees: Mapped[list[Fee]] = relationship("Fee", back_populates="fee_type", lazy="selectin")

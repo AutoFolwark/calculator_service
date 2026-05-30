@@ -7,9 +7,6 @@ class Environment(str, Enum):
     DEVELOPMENT = "development"
     PRODUCTION = "production"
 
-class Permissions(str, Enum):
-    EXCHANGE_RATE_WRITE = "calculator.exchange-rate:write"
-
 
 class Settings(BaseSettings):
     # Database
@@ -25,7 +22,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "calculator-service"
     DEBUG: bool = True
-    ROOT_PATH: str = ''
+    ROOT_PATH: str = ""
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
 
     # RPC
@@ -35,5 +32,6 @@ class Settings(BaseSettings):
     @property
     def enable_docs(self) -> bool:
         return self.ENVIRONMENT in [Environment.DEVELOPMENT]
+
 
 settings = Settings()

@@ -8,9 +8,11 @@ class FeeTypeCreate(BaseModel):
     auction: AuctionEnum
     fee_type: FeeTypeEnum
 
+
 class FeeTypeUpdate(BaseModel):
     auction: AuctionEnum | None
     fee_type: FeeTypeEnum | None
+
 
 class FeeTypeRead(FeeTypeCreate):
     id: int
