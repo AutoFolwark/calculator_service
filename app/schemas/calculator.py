@@ -2,7 +2,10 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.enums.auction import AuctionEnum
 from app.enums.fee_type import FeeTypeEnum
-from app.enums.vehicle_type import CalculatorVehicleTypeEnum, parse_calculator_vehicle_type
+from app.enums.vehicle_type import (
+    CalculatorVehicleTypeEnum,
+    parse_calculator_vehicle_type,
+)
 
 
 class CalculatorDataIn(BaseModel):
