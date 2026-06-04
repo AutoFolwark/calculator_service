@@ -1,10 +1,11 @@
-from typing import TypeVar, Generic, Type, Optional, Sequence
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
+from pydantic import BaseModel
 from rfc9457 import NotFoundProblem
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from pydantic import BaseModel
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -12,11 +13,11 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
 class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    def __init__(self, model: Type[ModelType], session: AsyncSession):
+    def __init__(self, model: type[ModelType], session: AsyncSession):
         self.model = model
         self.session = session
 
-    async def get(self, obj_id: int) -> Optional[ModelType]:
+    async def get(self, obj_id: int) -> ModelType | None:
         return await self.session.get(self.model, obj_id)
 
     async def get_with_not_found_exception(self, obj_id: int, obj_name: str) -> ModelType:
@@ -42,7 +43,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.session.refresh(obj)
         return obj
 
-    async def update(self, obj_id: int, data: UpdateSchemaType) -> Optional[ModelType]:
+    async def update(self, obj_id: int, data: UpdateSchemaType) -> ModelType | None:
         obj = await self.get(obj_id)
         if not obj:
             return None

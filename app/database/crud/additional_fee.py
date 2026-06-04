@@ -12,31 +12,28 @@ class AdditionalFeeService(BaseService[AdditionalFee, AdditionalFeeCreate, Addit
 
     async def get_price_in_int_proxy(self, price: int) -> AdditionalFee | None:
         result = await self.session.execute(
-            select(AdditionalFee).where(
+            select(AdditionalFee)
+            .where(
                 AdditionalFee.int_proxy_min.is_not(None),
                 AdditionalFee.int_proxy_max.is_not(None),
                 AdditionalFee.int_proxy_min <= price,
-                AdditionalFee.int_proxy_max >= price
+                AdditionalFee.int_proxy_max >= price,
             )
             .order_by(AdditionalFee.int_proxy_min)
             .limit(1)
         )
         return result.scalar_one_or_none()
 
-    async def  get_price_in_live(self, price: int)-> AdditionalFee | None:
+    async def get_price_in_live(self, price: int) -> AdditionalFee | None:
         result = await self.session.execute(
-            select(AdditionalFee).where(
+            select(AdditionalFee)
+            .where(
                 AdditionalFee.live_bid_min.is_not(None),
                 AdditionalFee.live_bid_max.is_not(None),
                 AdditionalFee.live_bid_min <= price,
-                AdditionalFee.live_bid_max >= price
+                AdditionalFee.live_bid_max >= price,
             )
             .order_by(AdditionalFee.live_bid_min)
             .limit(1)
         )
         return result.scalar_one_or_none()
-
-
-
-
-

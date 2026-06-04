@@ -14,6 +14,7 @@ class AdditionalFeeCreate(BaseModel):
 class AdditionalFeeUpdate(AdditionalFeeCreate):
     pass
 
+
 class AdditionalFeeRead(AdditionalFeeCreate):
     id: int
 

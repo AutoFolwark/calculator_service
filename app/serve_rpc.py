@@ -4,15 +4,16 @@ import signal
 import sys
 
 import grpc
-from grpc_health.v1 import health_pb2_grpc, health_pb2
+from grpc_health.v1 import health_pb2, health_pb2_grpc
 from grpc_reflection.v1alpha import reflection
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'rpc_client_server', 'gen', 'python'))
-from app.config import settings, Environment
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "rpc_client_server", "gen", "python"))
+from app.config import Environment, settings
 from app.core.logger import logger
-from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2, calculator_pb2_grpc
 from app.rpc_client_server.calulator_rpc import CalculatorRpc
 from app.rpc_client_server.detailed_info_rpc import DetailedInfoRpc
+from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2, calculator_pb2_grpc
 from app.rpc_client_server.health import HealthCheckServicer
 
 

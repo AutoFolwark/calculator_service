@@ -1,11 +1,10 @@
-from typing import Any, Coroutine, Sequence
+from collections.abc import Sequence
 
-from sqlalchemy import select, or_, and_, Row, RowMapping
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud.base import BaseService
-from app.database.models import Location, VehicleType, ShippingPrice, Destination, Terminal, DeliveryPrice
-
+from app.database.models import DeliveryPrice, Destination, ShippingPrice, Terminal, VehicleType
 from app.database.schemas.shipping_price import ShippingPriceCreate, ShippingPriceUpdate
 from app.enums.auction import AuctionEnum
 
@@ -14,34 +13,29 @@ class ShippingPriceService(BaseService[ShippingPrice, ShippingPriceCreate, Shipp
     def __init__(self, session: AsyncSession):
         super().__init__(ShippingPrice, session)
 
-    async def get_by_terminal_and_vehicle_type(self, terminal: Terminal, vehicle_type: VehicleType) -> \
-    Sequence[ShippingPrice]:
+    async def get_by_terminal_and_vehicle_type(
+        self, terminal: Terminal, vehicle_type: VehicleType
+    ) -> Sequence[ShippingPrice]:
         result = await self.session.execute(
-            select(ShippingPrice)
-            .where(
-                and_(
-                    ShippingPrice.terminal_id == terminal.id,
-                    ShippingPrice.vehicle_type_id == vehicle_type.id
-                )
+            select(ShippingPrice).where(
+                and_(ShippingPrice.terminal_id == terminal.id, ShippingPrice.vehicle_type_id == vehicle_type.id)
             )
         )
         return result.scalars().all()
 
-    async def get_by_destination_and_vehicle_type(self, destination: Destination, vehicle_type: VehicleType) -> \
-    Sequence[ShippingPrice]:
+    async def get_by_destination_and_vehicle_type(
+        self, destination: Destination, vehicle_type: VehicleType
+    ) -> Sequence[ShippingPrice]:
         result = await self.session.execute(
-            select(ShippingPrice)
-            .where(
-                and_(
-                    ShippingPrice.destination_id == destination.id,
-                    ShippingPrice.vehicle_type_id == vehicle_type.id
-                )
+            select(ShippingPrice).where(
+                and_(ShippingPrice.destination_id == destination.id, ShippingPrice.vehicle_type_id == vehicle_type.id)
             )
         )
         return result.scalars().all()
 
-    async def create_by_destination_vehicle_type_terminal(self, price: int, destination: Destination,
-                                                          vehicle_type: VehicleType, terminal: Terminal) -> ShippingPrice:
+    async def create_by_destination_vehicle_type_terminal(
+        self, price: int, destination: Destination, vehicle_type: VehicleType, terminal: Terminal
+    ) -> ShippingPrice:
         obj = ShippingPrice(price=price, destination=destination, terminal=terminal, vehicle_type=vehicle_type)
         self.session.add(obj)
         await self.session.commit()
@@ -49,10 +43,7 @@ class ShippingPriceService(BaseService[ShippingPrice, ShippingPriceCreate, Shipp
         return obj
 
     async def get_by_destination_vehicle_type_terminal_single(
-        self,
-        destination: Destination,
-        vehicle_type: VehicleType,
-        terminal: Terminal
+        self, destination: Destination, vehicle_type: VehicleType, terminal: Terminal
     ) -> ShippingPrice | None:
         result = await self.session.execute(
             select(ShippingPrice).where(
@@ -88,9 +79,8 @@ class ShippingPriceService(BaseService[ShippingPrice, ShippingPriceCreate, Shipp
         )
 
         if auction:
-            stmt = (
-                stmt.join(VehicleType, ShippingPrice.vehicle_type_id == VehicleType.id)
-                .where(VehicleType.auction == auction)
+            stmt = stmt.join(VehicleType, ShippingPrice.vehicle_type_id == VehicleType.id).where(
+                VehicleType.auction == auction
             )
 
         if get_stmt:
@@ -98,8 +88,3 @@ class ShippingPriceService(BaseService[ShippingPrice, ShippingPriceCreate, Shipp
 
         result = await self.session.execute(stmt)
         return result.scalars().unique().all()
-
-
-
-
-

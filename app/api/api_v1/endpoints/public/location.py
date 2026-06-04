@@ -5,8 +5,8 @@ from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.crud.location import LocationService
 from app.database.crud.delivery_price import DeliveryPriceService
+from app.database.crud.location import LocationService
 from app.database.crud.shipping_price import ShippingPriceService
 from app.database.db.session import get_async_db
 from app.database.schemas.destination import DestinationRead
@@ -19,15 +19,13 @@ location_api_router = APIRouter(prefix="/locations")
 
 @location_api_router.get("", response_model=LocationPage, tags=["locations"], description="Get locations list")
 async def get_locations_list(
-        params: Params = Depends(),
-        filters: GetLocationsIn = Depends(),
-        db: AsyncSession = Depends(get_async_db),
+    params: Params = Depends(),
+    filters: GetLocationsIn = Depends(),
+    db: AsyncSession = Depends(get_async_db),
 ):
     location_service = LocationService(db)
     locations_stmt = await location_service.get_with_search_auction(
-        search=filters.search,
-        auction=filters.auction,
-        get_stmt=True
+        search=filters.search, auction=filters.auction, get_stmt=True
     )
     return await paginate(db, locations_stmt, params)
 
@@ -49,10 +47,7 @@ async def get_location_terminals(
         location_id=location_id,
         auction=auction,
     )
-    return [
-        TerminalRead.model_validate(term, from_attributes=True)
-        for term in terminals
-    ]
+    return [TerminalRead.model_validate(term, from_attributes=True) for term in terminals]
 
 
 @location_api_router.get(
@@ -74,7 +69,4 @@ async def get_location_terminal_destinations(
         terminal_id=terminal_id,
         auction=auction,
     )
-    return [
-        DestinationRead.model_validate(dest, from_attributes=True)
-        for dest in destinations
-    ]
+    return [DestinationRead.model_validate(dest, from_attributes=True) for dest in destinations]

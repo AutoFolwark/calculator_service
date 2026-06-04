@@ -1,5 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
-
+from pydantic import BaseModel, ConfigDict
 
 
 class LocationCreate(BaseModel):
@@ -16,6 +15,7 @@ class LocationUpdate(BaseModel):
     state: str | None = None
     postal_code: str | None = None
     email: str | None = None
+
 
 class LocationRead(LocationCreate):
     id: int

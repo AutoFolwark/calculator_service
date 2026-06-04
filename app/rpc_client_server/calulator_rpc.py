@@ -12,45 +12,57 @@ from app.database.crud.location import LocationService
 from app.database.crud.shipping_price import ShippingPriceService
 from app.database.crud.vehicle_type import VehicleTypeService
 from app.database.db.session import get_db_context
-from app.database.models import Location, Destination, FeeType
+from app.database.models import Destination, FeeType, Location
 from app.enums.auction import AuctionEnum
 from app.enums.fee_type import FeeTypeEnum
-from app.enums.vehicle_type import VehicleTypeEnum
+from app.enums.vehicle_type import (
+    CalculatorVehicleTypeEnum,
+    parse_calculator_vehicle_type,
+    to_pricing_vehicle_type,
+)
 from app.rpc_client_server.auction_api import ApiRpcClient
-from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2_grpc, calculator_pb2
+from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2, calculator_pb2_grpc
+from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
+    AdditionalFeesOut,
+    CalculatorBatchItem,
+    City,
+    DefaultCalculator,
+    DetailedCalculatorData,
+    EUCalculator,
+    GetCalculatorWithDataBatchResponse,
+    GetCalculatorWithDataResponse,
+    GetCalculatorWithoutDataResponse,
+    SpecialFee,
+    Taxes,
+    TaxFlags,
+)
+from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
+    Calculator as CalculatorProto,
+)
 from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
     CalculatorOut as CalculatorOutProto,
-    GetCalculatorWithDataResponse,
-    DefaultCalculator,
-    EUCalculator,
-    City,
-    AdditionalFeesOut,
-    SpecialFee,
-    VATs,
-    GetCalculatorWithoutDataResponse,
-    GetCalculatorWithDataBatchResponse,
-    CalculatorBatchItem, DetailedCalculatorData,
 )
 from app.services.calculator.calculator_service import CalculatorService
 from app.services.calculator.exceptions import NotFoundError
-from app.services.calculator.types import CalculatorOut
-
+from app.services.calculator.types import Calculator as CalculatorModel
+from app.services.calculator.types import CalculatorOut as CalculatorOutModel
 
 if TYPE_CHECKING:
-    from app.services.calculator.types import City as PydanticCity
-    from app.services.calculator.types import SpecialFee as PydanticSpecialFee
+    pass
+
 
 class CalculatorRequest(BaseModel):
     price: int
     auction: AuctionEnum | None
     fee_type: FeeTypeEnum | None
     location: str
-    vehicle_type: VehicleTypeEnum
+    vehicle_type: CalculatorVehicleTypeEnum
     destination: str | None
+    year: int | None = None
+    purchase_for_company: bool = False
 
 
 class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
-
     @staticmethod
     def _safe_enum_conversion(value, enum_cls, field_name: str):
         if value in (None, ""):
@@ -66,85 +78,90 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
         raise ValueError(f"Invalid {field_name}: {value}")
 
     @staticmethod
-    def transform_to_proto(data, proto_class):
-        logger.debug(
-            f"Transforming data to proto {proto_class.__name__}, data count: {len(data) if data else 0}")
-        try:
-            if not data:
-                logger.debug(f"No data to transform for {proto_class.__name__}")
-                return []
-            result = [proto_class(price=item.price, name=item.name) for item in data]
-            logger.debug(f"Successfully transformed {len(result)} items to {proto_class.__name__}")
-            return result
-        except (AttributeError, TypeError) as e:
-            logger.error(f"Error transforming data to proto {proto_class.__name__}: {e}")
-            raise ValueError(f"Invalid data format for {proto_class.__name__}")
+    def _to_city(city) -> City:
+        return City(name=city.name, price=float(city.price))
 
-    def _create_calculator_out(self, calc: CalculatorOut) -> CalculatorOutProto:
-        logger.debug(f"Creating CalculatorOut from calculation result")
-        try:
-            c = calc.calculator
-            logger.debug(f"Processing calculator with broker_fee: {c.broker_fee}")
+    def _to_cities(self, cities) -> list[City]:
+        return [self._to_city(city) for city in (cities or [])]
 
-            transport = self.transform_to_proto(c.transportation_price, City)
-            ocean = self.transform_to_proto(c.ocean_ship, City)
+    @staticmethod
+    def _to_special_fee(fee) -> SpecialFee:
+        return SpecialFee(name=fee.name, price=float(fee.price))
 
-            additional = AdditionalFeesOut(
-                summ=c.additional.summ if c.additional else 0,
-                fees=self.transform_to_proto(
-                    c.additional.fees if c.additional else [],
-                    SpecialFee,
-                ),
-                auction_fee=c.additional.auction_fee if c.additional else 0,
-                internet_fee=c.additional.internet_fee if c.additional else 0,
-                live_fee=c.additional.live_fee if c.additional else 0,
-            )
-            logger.debug(f"Created additional fees with summ: {additional.summ}")
+    def _to_additional_fees(self, additional) -> AdditionalFeesOut:
+        if not additional:
+            return AdditionalFeesOut(summ=0.0, fees=[], auction_fee=0.0, internet_fee=0.0, live_fee=0.0)
+        return AdditionalFeesOut(
+            summ=float(additional.summ),
+            fees=[self._to_special_fee(fee) for fee in additional.fees],
+            auction_fee=float(additional.auction_fee),
+            internet_fee=float(additional.internet_fee),
+            live_fee=float(additional.live_fee),
+        )
 
-            base = dict(
-                broker_fee=c.broker_fee or 0,
-                transportation_price=transport,
-                ocean_ship=ocean,
-                additional=additional,
-            )
+    def _to_default_calculator(self, default_calculator) -> DefaultCalculator:
+        return DefaultCalculator(
+            broker_fee=float(default_calculator.broker_fee),
+            transportation_price=self._to_cities(default_calculator.transportation_price),
+            ocean_ship=self._to_cities(default_calculator.ocean_ship),
+            additional=self._to_additional_fees(default_calculator.additional),
+            totals=self._to_cities(default_calculator.totals),
+            auction_fee=float(default_calculator.auction_fee),
+            live_fee=float(default_calculator.live_fee),
+            internet_fee=float(default_calculator.internet_fee),
+        )
 
-            eu_calculator_exists = calc.eu_calculator is not None
-            logger.debug(f"EU calculator exists: {eu_calculator_exists}")
+    def _to_tax_flags(self, tax_flags) -> TaxFlags | None:
+        if not tax_flags:
+            return None
+        return TaxFlags(
+            is_monument=tax_flags.is_monument,
+            purchase_for_company=tax_flags.purchase_for_company,
+            duty_category=tax_flags.duty_category,
+            duty_rate=float(tax_flags.duty_rate),
+            vat_rate=float(tax_flags.vat_rate),
+        )
 
-            result = CalculatorOutProto(
-                calculator=DefaultCalculator(
-                    **base,
-                    totals=self.transform_to_proto(c.totals, City),
-                    auction_fee=c.auction_fee or 0,
-                    live_fee=c.live_fee or 0,
-                    internet_fee=c.internet_fee or 0,
-                ),
-                eu_calculator=EUCalculator(
-                    **base,
-                    totals=self.transform_to_proto(
-                        calc.eu_calculator.totals if calc.eu_calculator else [],
-                        City,
-                    ),
-                    vats=VATs(
-                        vats=self.transform_to_proto(
-                            calc.eu_calculator.vats.vats if calc.eu_calculator and calc.eu_calculator.vats else [],
-                            City,
-                        ),
-                        eu_vats=self.transform_to_proto(
-                            calc.eu_calculator.vats.eu_vats
-                            if calc.eu_calculator and calc.eu_calculator.vats
-                            else [],
-                            City,
-                        ),
-                    ),
-                    custom_agency=calc.eu_calculator.custom_agency if calc.eu_calculator else 0,
-                ),
-            )
-            logger.info(f"Successfully created CalculatorOut")
-            return result
-        except Exception as e:
-            logger.error(f"Error creating CalculatorOut: {e}", exc_info=True)
-            raise
+    def _to_eu_calculator(self, eu_calculator) -> EUCalculator:
+        taxes = Taxes(
+            vats=self._to_cities(eu_calculator.taxes.vats if eu_calculator.taxes else []),
+            duties=self._to_cities(eu_calculator.taxes.duties if eu_calculator.taxes else []),
+        )
+        eu_kwargs = dict(
+            broker_fee=float(eu_calculator.broker_fee),
+            transportation_price=self._to_cities(eu_calculator.transportation_price),
+            ocean_ship=self._to_cities(eu_calculator.ocean_ship),
+            additional=self._to_additional_fees(eu_calculator.additional),
+            totals=self._to_cities(eu_calculator.totals),
+            taxes=taxes,
+            custom_agency=float(eu_calculator.custom_agency),
+            totals_without_default=self._to_cities(eu_calculator.totals_without_default),
+        )
+        tax_flags = self._to_tax_flags(eu_calculator.tax_flags)
+        if tax_flags is not None:
+            eu_kwargs["tax_flags"] = tax_flags
+        return EUCalculator(**eu_kwargs)
+
+    def _to_calculator_out(self, calculator_out: CalculatorOutModel) -> CalculatorOutProto:
+        return CalculatorOutProto(
+            calculator=self._to_default_calculator(calculator_out.calculator),
+            eu_calculator=self._to_eu_calculator(calculator_out.eu_calculator),
+            currency=calculator_out.currency,
+        )
+
+    def _to_calculator(self, calculator: CalculatorModel) -> CalculatorProto:
+        return CalculatorProto(
+            calculator_in_dollars=self._to_calculator_out(calculator.calculator_in_dollars),
+            calculators_in_currencies=[
+                self._to_calculator_out(calculator_out) for calculator_out in calculator.calculators_in_currencies
+            ],
+            destinations=list(calculator.destinations),
+            rate=float(calculator.rate),
+        )
+
+    @staticmethod
+    def _get_optional_int32(request, field_name: str) -> int | None:
+        return getattr(request, field_name) if request.HasField(field_name) else None
 
     async def _build_detailed_data(self, db, params: CalculatorRequest) -> DetailedCalculatorData | None:
         logger.debug(f"Building detailed calculator data for params: {params}")
@@ -154,13 +171,14 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             delivery_price_service = DeliveryPriceService(db)
             fee_type_service = FeeTypeService(db)
             shipping_price_service = ShippingPriceService(db)
+            pricing_vehicle_type = to_pricing_vehicle_type(params.vehicle_type)
 
             vehicle_type_obj = await vehicle_type_service.get_by_auction_and_type(
                 params.auction,
-                params.vehicle_type,
+                pricing_vehicle_type,
             )
             if not vehicle_type_obj:
-                logger.warning(f"Vehicle type not found while building detailed data")
+                logger.warning("Vehicle type not found while building detailed data")
                 return None
 
             location_obj = await location_service.find_location(params.location, vehicle_type_obj)
@@ -168,10 +186,10 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 logger.warning(f"Location not found while building detailed data: {params.location}")
                 return None
 
+            fee_type_obj = await fee_type_service.get_by_fee_auction(
+                params.auction, params.fee_type if params.fee_type else FeeTypeEnum.NON_CLEAN_TITLE_FEE
+            )
 
-            fee_type_obj = await fee_type_service.get_by_fee_auction(params.auction, params.fee_type if params.fee_type else FeeTypeEnum.NON_CLEAN_TITLE_FEE)
-
-            print(fee_type_obj)
             delivery_prices = await delivery_price_service.get_by_terminal_location_vehicle_type(
                 location=location_obj,
                 vehicle_type=vehicle_type_obj,
@@ -229,18 +247,18 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             logger.error(f"Failed to build detailed calculator data: {e}", exc_info=True)
             return None
 
-    async def _calculate(self, request: CalculatorRequest) -> tuple[CalculatorOut, DetailedCalculatorData | None]:
+    async def _calculate(self, request: CalculatorRequest) -> tuple[CalculatorProto, DetailedCalculatorData | None]:
         async with get_db_context() as db:
-            logger.debug(f"Database connection established")
+            logger.debug("Database connection established")
             calculator_service = CalculatorService(db=db, **request.model_dump())
-            logger.debug(f"CalculatorService instance created")
+            logger.debug("CalculatorService instance created")
             result = await calculator_service.calculate()
-            logger.info(f"Calculation completed successfully")
+            logger.info("Calculation completed successfully")
 
-            calculator_out = self._create_calculator_out(result.calculator_in_dollars)
-            logger.debug(f"CalculatorOut created successfully")
+            calculator_out = self._to_calculator(result)
+            logger.debug("Calculator proto created successfully")
             detailed_data = await self._build_detailed_data(db, request)
-            logger.debug(f"Detailed calculator data prepared")
+            logger.debug("Detailed calculator data prepared")
             return calculator_out, detailed_data
 
     async def _calculate_and_respond(self, request: CalculatorRequest, context, response_cls):
@@ -276,7 +294,6 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 success=False,
             )
 
-
     @staticmethod
     async def _get_entity_or_set_not_found(db, model, obj_id: int, entity_name: str, context):
         entity = await db.get(model, obj_id)
@@ -295,12 +312,15 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             auction=self._safe_enum_conversion(request.auction, AuctionEnum, "auction"),
             fee_type=self._safe_enum_conversion(request.fee_type, FeeTypeEnum, "fee_type"),
             location=request.location,
-            vehicle_type=self._safe_enum_conversion(request.vehicle_type, VehicleTypeEnum, "vehicle_type")
-            or VehicleTypeEnum.CAR,
-            destination=request.destination if request.destination else None,
+            vehicle_type=parse_calculator_vehicle_type(request.vehicle_type),
+            destination=request.destination if request.HasField("destination") else None,
+            year=self._get_optional_int32(request, "year"),
+            purchase_for_company=request.purchase_for_company,
         )
 
-    async def GetCalculatorWithData(self, request: calculator_pb2.GetCalculatorWithDataRequest, context)-> calculator_pb2.GetCalculatorWithDataResponse:
+    async def GetCalculatorWithData(
+        self, request: calculator_pb2.GetCalculatorWithDataRequest, context
+    ) -> calculator_pb2.GetCalculatorWithDataResponse:
         logger.info(
             f"GetCalculatorWithData called with price: {request.price}, auction: {request.auction}, location: {request.location}"
         )
@@ -310,7 +330,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 raise ValueError("Price must be greater than -1")
 
             if not request.location:
-                logger.warning(f"Location not provided in request")
+                logger.warning("Location not provided in request")
                 raise ValueError("Location is required")
 
             logger.debug(
@@ -347,7 +367,9 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 success=False,
             )
 
-    async def GetCalculatorWithIds(self, request: calculator_pb2.GetCalculatorWithIdsRequest, context)-> calculator_pb2.GetCalculatorWithIdsResponse:
+    async def GetCalculatorWithIds(
+        self, request: calculator_pb2.GetCalculatorWithIdsRequest, context
+    ) -> calculator_pb2.GetCalculatorWithIdsResponse:
         logger.info(
             f"GetCalculatorWithIds called with price: {request.price}, auction: {request.auction}, location_id: {request.location_id}"
         )
@@ -357,18 +379,16 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 raise ValueError("Price must be greater than -1")
 
             if not request.HasField("location_id") or request.location_id <= 0:
-                logger.warning(f"Location ID not provided in request")
+                logger.warning("Location ID not provided in request")
                 raise ValueError("location_id is required")
 
             if not request.vehicle_type:
-                logger.warning(f"Vehicle type not provided in request")
+                logger.warning("Vehicle type not provided in request")
                 raise ValueError("vehicle_type is required")
 
             auction_enum = self._safe_enum_conversion(request.auction, AuctionEnum, "auction")
-            vehicle_type_enum = (
-                self._safe_enum_conversion(request.vehicle_type, VehicleTypeEnum, "vehicle_type")
-                or VehicleTypeEnum.CAR
-            )
+            calculator_vehicle_type = parse_calculator_vehicle_type(request.vehicle_type)
+            pricing_vehicle_type = to_pricing_vehicle_type(calculator_vehicle_type)
 
             location_message = None
             destination_name = ""
@@ -414,7 +434,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                     else:
                         destination = await destination_service.get_default()
                         if not destination:
-                            logger.error(f"Default destination not found")
+                            logger.error("Default destination not found")
                             context.set_code(grpc.StatusCode.NOT_FOUND)
                             context.set_details("Default destination not found")
                             return calculator_pb2.GetCalculatorWithIdsResponse()
@@ -440,7 +460,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
 
                     vehicle_type_service = VehicleTypeService(db)
                     vehicle_type_model = await vehicle_type_service.get_by_auction_and_type(
-                        auction_enum, vehicle_type_enum
+                        auction_enum, pricing_vehicle_type
                     )
                     if not vehicle_type_model:
                         message = "Vehicle type not found"
@@ -467,11 +487,13 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 auction=auction_enum,
                 fee_type=fee_type_enum_value,
                 location=location_name,
-                vehicle_type=vehicle_type_enum,
+                vehicle_type=calculator_vehicle_type,
                 destination=destination_value,
+                year=self._get_optional_int32(request, "year"),
+                purchase_for_company=request.purchase_for_company,
             )
 
-            calculator_out, detailed_data = await self._calculate(calc_request)
+            calculator_out, _detailed_data = await self._calculate(calc_request)
             if calculator_out is None:
                 return calculator_pb2.GetCalculatorWithIdsResponse()
 
@@ -480,7 +502,6 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 location=location_message,
                 terminal_name=terminal_name,
                 destination_name=destination_name,
-                detailed_data=detailed_data,
             )
 
             if fee_type_message:
@@ -538,7 +559,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             context.set_details("Internal server error")
             return GetCalculatorWithDataBatchResponse()
 
-    async def GetCalculatorWithoutData(self, request, context)-> calculator_pb2.GetCalculatorWithoutDataResponse:
+    async def GetCalculatorWithoutData(self, request, context) -> calculator_pb2.GetCalculatorWithoutDataResponse:
         logger.info(
             f"GetCalculatorWithoutData called with price: {request.price}, lot_id: {request.lot_id}, auction: {request.auction}"
         )
@@ -548,7 +569,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 raise ValueError("Price must be greater than 0")
 
             if not request.lot_id:
-                logger.warning(f"Lot ID not provided in request")
+                logger.warning("Lot ID not provided in request")
                 raise ValueError("Lot ID is required")
 
             auction_enum = self._safe_enum_conversion(request.auction, AuctionEnum, "auction")
@@ -604,17 +625,15 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             try:
                 lot_item = lot.lot[0]
                 logger.debug(f"Processing lot item with location: {lot_item.location}")
+                request_year = self._get_optional_int32(request, "year")
 
                 if not lot_item.location:
-                    logger.error(f"Lot location is empty")
+                    logger.error("Lot location is empty")
                     raise ValueError("Lot location is empty")
 
-                vehicle_type = VehicleTypeEnum.CAR
-                if hasattr(lot_item, "vehicle_type"):
-                    if lot_item.vehicle_type and lot_item.vehicle_type.lower() == "automobile":
-                        vehicle_type = VehicleTypeEnum.CAR
-                    else:
-                        vehicle_type = VehicleTypeEnum.MOTO
+                vehicle_type = parse_calculator_vehicle_type(
+                    lot_item.body_type if hasattr(lot_item, "body_type") else lot_item.vehicle_type
+                )
                 logger.debug(f"Determined vehicle type: {vehicle_type}")
 
                 params = CalculatorRequest(
@@ -623,7 +642,11 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                     fee_type=None,
                     location=lot_item.location,
                     vehicle_type=vehicle_type,
-                    destination=None,
+                    destination=request.destination if request.HasField("destination") else None,
+                    year=request_year
+                    if request_year is not None
+                    else (lot_item.year if hasattr(lot_item, "year") else None),
+                    purchase_for_company=request.purchase_for_company,
                 )
                 logger.info(f"Parameters prepared for calculation: {params}")
 

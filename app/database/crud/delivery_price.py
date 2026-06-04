@@ -1,11 +1,11 @@
-from typing import Any, Coroutine, Sequence
+from collections.abc import Sequence
 
-from sqlalchemy import select, and_, Row, RowMapping
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud.base import BaseService
-from app.database.models import DeliveryPrice, Terminal, Location, VehicleType
-from app.database.schemas.delivery_price import DeliveryPriceUpdate, DeliveryPriceCreate
+from app.database.models import DeliveryPrice, Location, Terminal, VehicleType
+from app.database.schemas.delivery_price import DeliveryPriceCreate, DeliveryPriceUpdate
 from app.enums.auction import AuctionEnum
 
 
@@ -13,7 +13,9 @@ class DeliveryPriceService(BaseService[DeliveryPrice, DeliveryPriceCreate, Deliv
     def __init__(self, session: AsyncSession):
         super().__init__(DeliveryPrice, session)
 
-    async def create_with_terminal_location_vehicle_type(self, price: int, terminal: Terminal, location: Location, vehicle_type: VehicleType):
+    async def create_with_terminal_location_vehicle_type(
+        self, price: int, terminal: Terminal, location: Location, vehicle_type: VehicleType
+    ):
         delivery_price = DeliveryPrice(price=price, terminal=terminal, location=location, vehicle_type=vehicle_type)
         self.session.add(delivery_price)
         await self.session.commit()
@@ -30,13 +32,7 @@ class DeliveryPriceService(BaseService[DeliveryPrice, DeliveryPriceCreate, Deliv
         if terminal:
             conditions.append(DeliveryPrice.terminal_id == terminal.id)
 
-        result = await self.session.execute(
-            select(DeliveryPrice).where(
-                and_(
-                    *conditions
-                )
-            )
-        )
+        result = await self.session.execute(select(DeliveryPrice).where(and_(*conditions)))
         return result.scalars().all()
 
     async def get_available_terminals(
@@ -53,9 +49,8 @@ class DeliveryPriceService(BaseService[DeliveryPrice, DeliveryPriceCreate, Deliv
         )
 
         if auction:
-            stmt = (
-                stmt.join(VehicleType, DeliveryPrice.vehicle_type_id == VehicleType.id)
-                .where(VehicleType.auction == auction)
+            stmt = stmt.join(VehicleType, DeliveryPrice.vehicle_type_id == VehicleType.id).where(
+                VehicleType.auction == auction
             )
 
         if get_stmt:
@@ -63,4 +58,3 @@ class DeliveryPriceService(BaseService[DeliveryPrice, DeliveryPriceCreate, Deliv
 
         result = await self.session.execute(stmt)
         return result.scalars().unique().all()
-

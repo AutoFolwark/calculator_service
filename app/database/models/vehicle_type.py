@@ -8,10 +8,8 @@ from app.enums.auction import AuctionEnum, SpecificAuctionEnum
 from app.enums.vehicle_type import VehicleTypeEnum
 
 if TYPE_CHECKING:
-    from app.database.models.location import Location
-    from app.database.models.terminal import Terminal
-    from app.database.models.shipping_price import ShippingPrice
     from app.database.models.delivery_price import DeliveryPrice
+    from app.database.models.shipping_price import ShippingPrice
 
 
 class VehicleType(Base):
@@ -22,17 +20,14 @@ class VehicleType(Base):
     auction: Mapped[AuctionEnum | None] = mapped_column(SQLAlchemyEnum(AuctionEnum), nullable=True)
     vehicle_type: Mapped[VehicleTypeEnum | None] = mapped_column(SQLAlchemyEnum(VehicleTypeEnum), nullable=True)
 
-    specific_type: Mapped[SpecificAuctionEnum | None] = mapped_column(SQLAlchemyEnum(SpecificAuctionEnum),
-                                                               nullable=True, default=None)
+    specific_type: Mapped[SpecificAuctionEnum | None] = mapped_column(
+        SQLAlchemyEnum(SpecificAuctionEnum), nullable=True, default=None
+    )
 
     shipping_prices: Mapped[list["ShippingPrice"]] = relationship(
-        back_populates="vehicle_type",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        back_populates="vehicle_type", cascade="all, delete-orphan", lazy="selectin"
     )
 
     delivery_prices: Mapped[list["DeliveryPrice"]] = relationship(
-        back_populates="vehicle_type",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        back_populates="vehicle_type", cascade="all, delete-orphan", lazy="selectin"
     )

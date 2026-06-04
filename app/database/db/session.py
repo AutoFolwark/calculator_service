@@ -1,19 +1,23 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import Any
 
 from sqlalchemy import Engine, create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+
 from app.config import settings
 from app.core.utils import BASE_DIR
 
 if settings.DEBUG:
     SQLALCHEMY_ASYNC_DATABASE_URL = f"sqlite+aiosqlite:///{BASE_DIR}/db.sqlite"
 else:
-    SQLALCHEMY_ASYNC_DATABASE_URL = f'postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}'
+    SQLALCHEMY_ASYNC_DATABASE_URL = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 if settings.DEBUG:
-    SQLALCHEMY_DATABASE_URL = f'sqlite:///{BASE_DIR}/db.sqlite'
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{BASE_DIR}/db.sqlite"
 else:
-    SQLALCHEMY_DATABASE_URL = f'postgresql://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}'
+    SQLALCHEMY_DATABASE_URL = (
+        f"postgresql://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    )
 
 engine: Engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
@@ -24,14 +28,14 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
 )
 
-async def get_async_db()-> AsyncGenerator[AsyncSession | Any, Any]:
+
+async def get_async_db() -> AsyncGenerator[AsyncSession | Any, Any]:
     async with AsyncSessionLocal() as session:
         yield session
         await session.close()
+
 
 @asynccontextmanager
 async def get_db_context():
     async with AsyncSessionLocal() as session:
         yield session
-
-

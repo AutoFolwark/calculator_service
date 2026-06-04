@@ -15,6 +15,7 @@ class AdditionalSpecialFeeUpdate(BaseModel):
     auction: VehicleTypeEnum | None
     amount: int | None
 
+
 class AdditionalSpecialFeeRead(AdditionalSpecialFeeCreate):
     id: int
 

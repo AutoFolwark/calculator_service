@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum as SQLAlchemyEnum, Index, ForeignKey
+from sqlalchemy import ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.models import Base
@@ -20,19 +20,10 @@ class Fee(Base):
 
     fee_type_id: Mapped[int] = mapped_column(ForeignKey("fee_type.id"), nullable=False)
 
-    __table_args__ = (
-        Index('idx_fee_type_price_range', 'fee_type_id', 'car_price_min', 'car_price_max'),
-    )
+    __table_args__ = (Index("idx_fee_type_price_range", "fee_type_id", "car_price_min", "car_price_max"),)
 
-    fee_type: Mapped['FeeType'] = relationship(
+    fee_type: Mapped["FeeType"] = relationship(
         "FeeType",
         back_populates="fees",
         lazy="selectin",
     )
-
-
-
-
-
-
-

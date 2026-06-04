@@ -1,18 +1,18 @@
-from typing import Type, TypeVar
+from typing import TypeVar
 
 import grpc
+from currency_converter import CurrencyConverter
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.logger import logger
-from app.database.crud.exchange_rate import ExchangeRateService
 from app.database.db.session import get_db_context
-from app.database.models import Location, Terminal, Destination, FeeType
-from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2_grpc, calculator_pb2
+from app.database.models import Destination, FeeType, Location, Terminal
+from app.rpc_client_server.gen.python.calculator.v1 import calculator_pb2, calculator_pb2_grpc
 from app.rpc_client_server.gen.python.calculator.v1.calculator_pb2 import (
+    GetDetailedDestinationResponse,
     GetDetailedFeeTypeResponse,
     GetDetailedLocationResponse,
     GetDetailedTerminalResponse,
-    GetDetailedDestinationResponse,
     GetRatesResponse,
 )
 
@@ -22,7 +22,7 @@ ModelType = TypeVar("ModelType")
 class DetailedInfoRpc(calculator_pb2_grpc.DetailedInfoServiceServicer):
     @staticmethod
     async def _fetch_entity(
-        model: Type[ModelType],
+        model: type[ModelType],
         obj_id: int,
         entity_name: str,
         context,
@@ -110,10 +110,7 @@ class DetailedInfoRpc(calculator_pb2_grpc.DetailedInfoServiceServicer):
     async def GetRates(self, request: calculator_pb2.GetRatesRequest, context):
         logger.info("GetRates request received")
         try:
-            async with get_db_context() as db:
-                exchange_rate_service = ExchangeRateService(db)
-                rate_obj = await exchange_rate_service.get_last_rate()
-                rate_value = rate_obj.rate if hasattr(rate_obj, "rate") else rate_obj
+            rate_value = CurrencyConverter().convert(1, "USD", "EUR")
             return GetRatesResponse(rate=float(rate_value))
         except Exception as exc:
             logger.exception("Unexpected error while fetching exchange rate: %s", exc)

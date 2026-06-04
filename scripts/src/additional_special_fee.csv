@@ -1,8 +1,7 @@
 id,name,auction,amount
 1,Enviroment,IAAI,15
 2,Service Fee,IAAI,95
-3,Title Handling,IAAI,20
-4,Broker Fee,IAAI,35
-5,Gate Fee,COPART,95
-6,Enviroment,COPART,15
-7,Title Handling,COPART,20
+3,Broker Fee,IAAI,35
+4,Gate Fee,COPART,95
+5,Enviroment,COPART,15
+6,Broker Fee,COPART,50
