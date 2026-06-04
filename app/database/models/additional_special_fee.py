@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database.models import Base
+from app.database.models.base import Base
 from app.enums.auction import AuctionEnum
 
 

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.models import Base
+from app.database.models.base import Base
 from app.enums.auction import AuctionEnum, SpecificAuctionEnum
 from app.enums.vehicle_type import VehicleTypeEnum
 
@@ -17,8 +17,12 @@ class VehicleType(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    auction: Mapped[AuctionEnum | None] = mapped_column(SQLAlchemyEnum(AuctionEnum), nullable=True)
-    vehicle_type: Mapped[VehicleTypeEnum | None] = mapped_column(SQLAlchemyEnum(VehicleTypeEnum), nullable=True)
+    auction: Mapped[AuctionEnum | None] = mapped_column(
+        SQLAlchemyEnum(AuctionEnum), nullable=True
+    )
+    vehicle_type: Mapped[VehicleTypeEnum | None] = mapped_column(
+        SQLAlchemyEnum(VehicleTypeEnum), nullable=True
+    )
 
     specific_type: Mapped[SpecificAuctionEnum | None] = mapped_column(
         SQLAlchemyEnum(SpecificAuctionEnum), nullable=True, default=None

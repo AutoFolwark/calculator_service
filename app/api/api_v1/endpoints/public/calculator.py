@@ -14,7 +14,8 @@ from app.database.db.session import get_async_db
 from app.enums.auction import AuctionEnum
 from app.enums.vehicle_type import parse_calculator_vehicle_type
 from app.rpc_client_server.auction_api import ApiRpcClient
-from app.schemas.calculator import CalculatorDataIn, CalculatorWithoutDetailsIn, GetLocationsIn, LocationPage
+from app.schemas.calculator import CalculatorDataIn, CalculatorWithoutDetailsIn
+from app.schemas.location import GetLocationsIn, LocationPage
 from app.services.calculator.calculator_service import CalculatorService
 from app.services.calculator.exceptions import NotFoundError
 from app.services.calculator.types import Calculator

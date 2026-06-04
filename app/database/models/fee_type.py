@@ -1,7 +1,8 @@
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database.models import Base, Fee
+from app.database.models.base import Base
+from app.database.models.fee import Fee
 from app.enums.auction import AuctionEnum
 from app.enums.fee_type import FeeTypeEnum
 
@@ -11,9 +12,15 @@ class FeeType(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    auction: Mapped[AuctionEnum] = mapped_column(SQLAlchemyEnum(AuctionEnum), nullable=False)
+    auction: Mapped[AuctionEnum] = mapped_column(
+        SQLAlchemyEnum(AuctionEnum), nullable=False
+    )
     fee_type: Mapped[FeeTypeEnum] = mapped_column(
-        SQLAlchemyEnum(FeeTypeEnum), default=FeeTypeEnum.NON_CLEAN_TITLE_FEE, nullable=False
+        SQLAlchemyEnum(FeeTypeEnum),
+        default=FeeTypeEnum.NON_CLEAN_TITLE_FEE,
+        nullable=False,
     )
 
-    fees: Mapped[list[Fee]] = relationship("Fee", back_populates="fee_type", lazy="selectin")
+    fees: Mapped[list[Fee]] = relationship(
+        "Fee", back_populates="fee_type", lazy="selectin"
+    )
