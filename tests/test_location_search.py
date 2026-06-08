@@ -4,7 +4,6 @@ import pytest
 
 from app.database.crud.location import LocationService
 from app.database.crud.vehicle_type import VehicleTypeService
-from app.database.db.session import get_db_context
 from app.enums.auction import AuctionEnum
 from app.enums.vehicle_type import VehicleTypeEnum
 from app.services.location_search import (
@@ -14,6 +13,7 @@ from app.services.location_search import (
     parse_location_name,
     score_match,
 )
+from tests.conftest import LocationDb
 
 
 @pytest.mark.parametrize(
@@ -75,8 +75,8 @@ def test_apply_parsed_overrides_refreshes_derived_fields() -> None:
     assert "IL - Chicago North" in parsed.canonical_names
 
 
-async def _find_location(query: str, auction: AuctionEnum):
-    async with get_db_context() as db:
+async def _find_location(location_db: LocationDb, query: str, auction: AuctionEnum):
+    async with location_db.session() as db:
         vehicle_type = await VehicleTypeService(db).get_by_auction_and_type(auction, VehicleTypeEnum.CAR)
         return await LocationService(db).find_location(query, vehicle_type)
 
@@ -102,8 +102,13 @@ async def _find_location(query: str, auction: AuctionEnum):
         ("san antonio-south (tx)", AuctionEnum.IAAI, "TX - San Antonio South"),
     ],
 )
-def test_find_location_matches_existing_rows(query: str, auction: AuctionEnum, expected: str) -> None:
-    location = asyncio.run(_find_location(query, auction))
+def test_find_location_matches_existing_rows(
+    location_db: LocationDb,
+    query: str,
+    auction: AuctionEnum,
+    expected: str,
+) -> None:
+    location = asyncio.run(_find_location(location_db, query, auction))
     assert location is not None
     assert location.name == expected
 
@@ -116,6 +121,10 @@ def test_find_location_matches_existing_rows(query: str, auction: AuctionEnum, e
         ("ab - calgary", AuctionEnum.COPART),
     ],
 )
-def test_find_location_stays_missing_for_unknown_rows(query: str, auction: AuctionEnum) -> None:
-    location = asyncio.run(_find_location(query, auction))
+def test_find_location_stays_missing_for_unknown_rows(
+    location_db: LocationDb,
+    query: str,
+    auction: AuctionEnum,
+) -> None:
+    location = asyncio.run(_find_location(location_db, query, auction))
     assert location is None
