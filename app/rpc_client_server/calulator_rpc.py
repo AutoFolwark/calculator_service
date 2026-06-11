@@ -147,6 +147,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
             calculator=self._to_default_calculator(calculator_out.calculator),
             eu_calculator=self._to_eu_calculator(calculator_out.eu_calculator),
             currency=calculator_out.currency,
+            rate_to_usd=float(calculator_out.rate_to_usd),
         )
 
     def _to_calculator(self, calculator: CalculatorModel) -> CalculatorProto:
@@ -654,6 +655,7 @@ class CalculatorRpc(calculator_pb2_grpc.CalculatorServiceServicer):
                 logger.error(f"Error parsing lot data: {e}")
                 context.set_code(grpc.StatusCode.INTERNAL)
                 context.set_details("Invalid lot data format")
+
                 return GetCalculatorWithoutDataResponse(
                     message="Invalid lot data format",
                     success=False,

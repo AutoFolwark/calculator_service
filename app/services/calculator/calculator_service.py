@@ -266,6 +266,7 @@ class CalculatorService:
         """Convert calculator values from USD to EUR."""
 
         usd_currency_rate = self.currency_converter.convert(1, "USD", currency)
+        rate_to_usd = 1.0 if currency == "USD" else self.currency_converter.convert(1, currency, "USD")
 
         def usd_to_currency(usd: float) -> float:
             return round(usd * usd_currency_rate, 2)
@@ -312,6 +313,7 @@ class CalculatorService:
         )
         return CalculatorOut(
             currency=currency,
+            rate_to_usd=round(rate_to_usd, 6),
             calculator=default_calculator,
             eu_calculator=eu_calculator,
         )
@@ -495,6 +497,7 @@ class CalculatorService:
 
         calculator_out = CalculatorOut(
             currency="USD",
+            rate_to_usd=1.0,
             calculator=calculator,
             eu_calculator=eu_calculator,
         )

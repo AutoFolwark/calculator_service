@@ -364,14 +364,16 @@ class EUCalculator(_message.Message):
     def __init__(self, broker_fee: _Optional[float] = ..., transportation_price: _Optional[_Iterable[_Union[City, _Mapping]]] = ..., ocean_ship: _Optional[_Iterable[_Union[City, _Mapping]]] = ..., additional: _Optional[_Union[AdditionalFeesOut, _Mapping]] = ..., totals: _Optional[_Iterable[_Union[City, _Mapping]]] = ..., taxes: _Optional[_Union[Taxes, _Mapping]] = ..., custom_agency: _Optional[float] = ..., totals_without_default: _Optional[_Iterable[_Union[City, _Mapping]]] = ..., tax_flags: _Optional[_Union[TaxFlags, _Mapping]] = ...) -> None: ...
 
 class CalculatorOut(_message.Message):
-    __slots__ = ("calculator", "eu_calculator", "currency")
+    __slots__ = ("calculator", "eu_calculator", "currency", "rate_to_usd")
     CALCULATOR_FIELD_NUMBER: _ClassVar[int]
     EU_CALCULATOR_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    RATE_TO_USD_FIELD_NUMBER: _ClassVar[int]
     calculator: DefaultCalculator
     eu_calculator: EUCalculator
     currency: str
-    def __init__(self, calculator: _Optional[_Union[DefaultCalculator, _Mapping]] = ..., eu_calculator: _Optional[_Union[EUCalculator, _Mapping]] = ..., currency: _Optional[str] = ...) -> None: ...
+    rate_to_usd: float
+    def __init__(self, calculator: _Optional[_Union[DefaultCalculator, _Mapping]] = ..., eu_calculator: _Optional[_Union[EUCalculator, _Mapping]] = ..., currency: _Optional[str] = ..., rate_to_usd: _Optional[float] = ...) -> None: ...
 
 class Calculator(_message.Message):
     __slots__ = ("calculator_in_dollars", "calculators_in_currencies", "destinations", "rate")

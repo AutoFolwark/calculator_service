@@ -55,6 +55,7 @@ class EUCalculator(BaseCalculator):
 
 class CalculatorOut(BaseModel):
     currency: str
+    rate_to_usd: float
     calculator: DefaultCalculator
     eu_calculator: EUCalculator
 
