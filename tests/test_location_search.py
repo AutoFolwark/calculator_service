@@ -35,6 +35,20 @@ def test_parse_location_name(raw: str, city: str, state: str, canonical: str) ->
     assert canonical in parsed.canonical_names
 
 
+@pytest.mark.parametrize(
+    ("raw", "city", "state"),
+    [
+        ("505 IDLEWILD ROAD, GRAND PRAIRIE, TX 75051", "Grand Prairie", "TX"),
+        ("123 main st, austin, tx 78701", "Austin", "TX"),
+    ],
+)
+def test_parse_location_name_handles_street_address(raw: str, city: str, state: str) -> None:
+    parsed = parse_location_name(raw)
+    assert parsed.city == city
+    assert parsed.state == state
+    assert f"{state} - {city}" in parsed.canonical_names
+
+
 def test_build_canonical_names_includes_hyphen_variant() -> None:
     names = build_canonical_names("Boston Shirley", "MA")
     assert "MA - Boston Shirley" in names

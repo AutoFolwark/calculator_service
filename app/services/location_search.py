@@ -248,6 +248,19 @@ def parse_location_name(name: str) -> ParsedLocation:
     text = clean(raw)
     state: str | None = None
 
+    street_address_match = re.search(r",\s*([^,]+?),\s*([a-z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$", text)
+    if street_address_match:
+        state = resolve_state(street_address_match.group(2))
+        city = compact_city_label(street_address_match.group(1))
+        return ParsedLocation(
+            raw=raw,
+            city=city,
+            state=state,
+            core_tokens=core_tokens_from(city),
+            direction_tokens=direction_tokens_from(city),
+            canonical_names=build_canonical_names(city, state),
+        )
+
     match = re.search(r"\(([^)]+)\)", text)
     if match:
         state = resolve_state(match.group(1))

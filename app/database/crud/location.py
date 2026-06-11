@@ -1,6 +1,6 @@
 import re
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.crud.base import BaseService
@@ -13,6 +13,7 @@ from app.services.location_search import (
     apply_parsed_overrides,
     parse_location_name,
     score_match,
+    similarity,
 )
 
 
@@ -125,6 +126,74 @@ class LocationService(BaseService[Location, LocationCreate, LocationUpdate]):
 
         return None
 
+    async def _search_by_python_similarity(
+        self,
+        parsed: ParsedLocation,
+        vehicle_type: VehicleType,
+        *,
+        location_name: str,
+        city: str | None = None,
+        state: str | None = None,
+        threshold: float = 0.6,
+    ) -> Location | None:
+        search_terms = list(
+            dict.fromkeys(
+                term.lower()
+                for term in filter(
+                    None,
+                    [
+                        location_name,
+                        parsed.city,
+                        f"{parsed.city}, {parsed.state}" if parsed.city and parsed.state else None,
+                        city,
+                    ],
+                )
+            )
+        )
+        if not search_terms:
+            return None
+
+        best: Location | None = None
+        best_score = threshold
+        seen_ids: set[int] = set()
+
+        for term in search_terms:
+            tokens = [token for token in re.split(r"[\s,]+", term) if len(token) > 2]
+            if not tokens:
+                continue
+
+            longest_token = max(tokens, key=len)
+            filters = [
+                or_(
+                    Location.city.ilike(f"%{longest_token}%"),
+                    Location.name.ilike(f"%{longest_token}%"),
+                )
+            ]
+            if parsed.state:
+                filters.append(Location.state.ilike(parsed.state))
+
+            result = await self.session.execute(
+                select(Location)
+                .join(DeliveryPrice)
+                .where(and_(*filters, self._vehicle_type_filter(vehicle_type)))
+                .distinct()
+            )
+
+            for candidate in result.scalars().all():
+                if candidate.id in seen_ids:
+                    continue
+                seen_ids.add(candidate.id)
+
+                candidate_score = max(
+                    similarity((candidate.name or "").lower(), term),
+                    similarity((candidate.city or "").lower(), term),
+                )
+                if candidate_score > best_score:
+                    best_score = candidate_score
+                    best = candidate
+
+        return best
+
     async def get_location_fuzzy(
         self,
         location_name: str,
@@ -137,41 +206,22 @@ class LocationService(BaseService[Location, LocationCreate, LocationUpdate]):
         if location:
             return location
 
-        if self.session.bind is None or self.session.bind.dialect.name != "postgresql":
-            return None
+        parsed = parse_location_name(location_name)
+        if city is not None or state is not None:
+            apply_parsed_overrides(parsed, city=city, state=state)
 
-        for term in filter(None, [location_name, city, state]):
-            result = await self.session.execute(
-                select(Location)
-                .join(DeliveryPrice)
-                .where(
-                    and_(
-                        self._vehicle_type_filter(vehicle_type),
-                        or_(
-                            func.similarity(Location.name, term) > threshold,
-                            func.similarity(Location.city, term) > threshold,
-                        ),
-                    )
-                )
-                .order_by(
-                    desc(func.greatest(func.similarity(Location.name, term), func.similarity(Location.city, term)))
-                )
-                .limit(1)
-            )
-
-            location = result.scalar_one_or_none()
-            if location:
-                return location
-
-        return None
+        return await self._search_by_python_similarity(
+            parsed,
+            vehicle_type,
+            location_name=location_name,
+            city=city,
+            state=state,
+            threshold=threshold,
+        )
 
     async def find_location(
         self, location_name: str, vehicle_type: VehicleType, city: str | None = None, state: str | None = None
     ) -> Location | None:
-        location = await self.get_location(location_name, vehicle_type, city, state)
-        if location:
-            return location
-
         return await self.get_location_fuzzy(location_name, vehicle_type, city, state)
 
     async def get_by_name(self, name: str) -> Location | None:
