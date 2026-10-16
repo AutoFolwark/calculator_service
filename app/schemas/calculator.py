@@ -19,6 +19,11 @@ class CalculatorDataIn(BaseModel):
     # New BIDMAX specific fields
     year: int | None = Field(None, description="Year of the vehicle")
     purchase_for_company: bool = Field(False, description="Purchase for a company")
+    customs_value: float | None = Field(
+        None,
+        gt=0,
+        description="Customs value in USD used as EU duty/VAT base; defaults to calculated subtotal",
+    )
 
     @field_validator("vehicle_type", mode="before")
     @classmethod
@@ -34,3 +39,8 @@ class CalculatorWithoutDetailsIn(BaseModel):
     price: int = Field(..., gt=0, description="Price for vehicle")
     destination: str | None = Field(None, description="Destination (Port in Europe)")
     purchase_for_company: bool = Field(False, description="Purchase for a company")
+    customs_value: float | None = Field(
+        None,
+        gt=0,
+        description="Customs value in USD used as EU duty/VAT base; defaults to calculated subtotal",
+    )

@@ -44,6 +44,7 @@ async def get_calculator(data: CalculatorDataIn = Body(...), db: AsyncSession = 
             destination=data.destination,
             year=data.year,
             purchase_for_company=data.purchase_for_company,
+            customs_value=data.customs_value,
         )
 
         return await calculator_service.calculate()
@@ -80,6 +81,7 @@ async def get_calculator_by_lot(
             ),
             year=lot.lot[0].year if hasattr(lot.lot[0], "year") else None,
             purchase_for_company=price.purchase_for_company,
+            customs_value=price.customs_value,
         )
         return await calculator_service.calculate()
     except grpc.aio.AioRpcError as e:

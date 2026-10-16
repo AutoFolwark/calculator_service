@@ -17,6 +17,7 @@ class TaxFlags(BaseModel):
     duty_category: str
     duty_rate: float
     vat_rate: float
+    customs_value_overridden: bool = False
 
 
 class SpecialFee(BaseModel):
@@ -50,6 +51,7 @@ class EUCalculator(BaseCalculator):
     totals_without_default: list[City]
     taxes: Taxes
     custom_agency: float = 0.0
+    customs_values: list[City] = []
     tax_flags: TaxFlags | None = None
 
 

@@ -63,6 +63,7 @@ class CalculatorService:
         # New BIDMAX specific fields
         year: int | None = None,
         purchase_for_company: bool = False,
+        customs_value: float | None = None,
     ):
         """Initialize calculator input data and tax-related flags."""
 
@@ -76,6 +77,7 @@ class CalculatorService:
             destination=destination,
             year=year,
             purchase_for_company=purchase_for_company,
+            customs_value=customs_value,
         )
         self.currency_converter = CurrencyConverter()
         self.is_monument = self._compute_is_monument(self.data.year)
@@ -160,6 +162,13 @@ class CalculatorService:
 
         return compute_is_monument(year)
 
+    def _get_customs_value(self, base_sum: float) -> float:
+        """Return the duty/VAT base, using the user override when provided."""
+
+        if self.data.customs_value is not None:
+            return round(self.data.customs_value, 2)
+        return base_sum
+
     def _calculate_base_import_value(
         self,
         delivery_price: float,
@@ -237,6 +246,7 @@ class CalculatorService:
         custom_agency: float,
         total_eu: list[City],
         total_without_default: list[City],
+        customs_values: list[City],
     ) -> EUCalculator:
         """Build EU calculator output section with applied tax flags."""
 
@@ -249,6 +259,7 @@ class CalculatorService:
             custom_agency=custom_agency,
             totals=total_eu,
             totals_without_default=total_without_default,
+            customs_values=customs_values,
             tax_flags=TaxFlags(
                 is_monument=self.is_monument,
                 purchase_for_company=self.data.purchase_for_company,
@@ -258,6 +269,7 @@ class CalculatorService:
                     is_monument=self.is_monument,
                     purchase_for_company=self.data.purchase_for_company,
                 ),
+                customs_value_overridden=self.data.customs_value is not None,
             ),
         )
 
@@ -309,6 +321,7 @@ class CalculatorService:
             ),
             totals_without_default=city_to_currency(calculator.eu_calculator.totals_without_default),
             custom_agency=usd_to_currency(calculator.eu_calculator.custom_agency),
+            customs_values=city_to_currency(calculator.eu_calculator.customs_values),
             tax_flags=calculator.eu_calculator.tax_flags,
         )
         return CalculatorOut(
@@ -458,6 +471,7 @@ class CalculatorService:
         vats_list: list[City] = []
         total_eu: list[City] = []
         total_without_default: list[City] = []
+        customs_values: list[City] = []
 
         for delivery, shipping in zip(delivery_cities, shipping_terminals, strict=False):
             base_sum = self._calculate_base_import_value(
@@ -465,10 +479,13 @@ class CalculatorService:
                 shipping_price=shipping.price,
                 additional_sum=additional_fees.summ,
             )
-            duty = self._calculate_duty(base_sum)
+            customs_value = self._get_customs_value(base_sum)
+            customs_values.append(City(name=delivery.name, price=customs_value))
+
+            duty = self._calculate_duty(customs_value)
             duties_list.append(City(name=delivery.name, price=duty))
 
-            vat = self._calculate_vat(base_sum, duty)
+            vat = self._calculate_vat(customs_value, duty)
             vats_list.append(City(name=delivery.name, price=vat))
 
             total_price_eu = self._calculate_eu_total(
@@ -493,6 +510,7 @@ class CalculatorService:
             custom_agency=round(custom_agency, 2),
             total_eu=total_eu,
             total_without_default=total_without_default,
+            customs_values=customs_values,
         )
 
         calculator_out = CalculatorOut(
